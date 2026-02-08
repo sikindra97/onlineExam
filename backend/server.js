@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 /* =========================
-   DATABASE (FIRST)
+   DATABASE
 ========================= */
 mongoose
   .connect(process.env.MONGO_URI)
@@ -20,21 +20,27 @@ mongoose
     console.log("✅ MongoDB Connected");
 
     /* =========================
-       ROUTES (AFTER DB)
+       ROUTES
     ========================= */
     app.use("/api/auth", require("./routes/auth"));
     app.use("/api/exam", require("./routes/exam"));
-    app.use("/api", require("./routes/result")); 
-    // ↑ result routes: /api/results, /api/history etc
-
-    /* ✅ CONTACT / ISSUE MESSAGES ROUTE */
+    app.use("/api", require("./routes/result"));
     app.use("/api/messages", require("./routes/message"));
 
     /* =========================
-       SERVER
+       HEALTH CHECK (IMPORTANT)
     ========================= */
-    app.listen(5000, () => {
-      console.log("🚀 Server running on port 5000");
+    app.get("/", (req, res) => {
+      res.send("Backend running 🚀");
+    });
+
+    /* =========================
+       SERVER (FIXED)
+    ========================= */
+    const PORT = process.env.PORT || 8080;
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
     });
   })
   .catch((err) => {
