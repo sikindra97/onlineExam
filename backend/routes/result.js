@@ -52,10 +52,10 @@ router.get("/my-results", auth, async (req, res) => {
 ========================= */
 router.get("/exam/result/me/:examId", auth, async (req, res) => {
   try {
-    console.log("🚀 ====== FETCHING STUDENT RESULT ======");
-    console.log("📝 Exam ID:", req.params.examId);
-    console.log("👤 User ID:", req.user.id);
-    console.log("👤 User Role:", req.user.role);
+    // console.log("🚀 ====== FETCHING STUDENT RESULT ======");
+    // console.log("📝 Exam ID:", req.params.examId);
+    // console.log("👤 User ID:", req.user.id);
+    // console.log("👤 User Role:", req.user.role);
 
     const { examId } = req.params;
     const userId = req.user.id;
@@ -86,7 +86,7 @@ router.get("/exam/result/me/:examId", auth, async (req, res) => {
       practice: false,
     }).populate("exam", "title examType description");
 
-    console.log("🔍 Query result:", result ? "Found" : "Not found");
+    // console.log("🔍 Query result:", result ? "Found" : "Not found");
 
     if (!result) {
       console.log("❌ No result found");
@@ -154,9 +154,9 @@ router.get("/exam/result/me/:examId", auth, async (req, res) => {
 ========================= */
 router.get("/exam/results/:examId", auth, async (req, res) => {
   try {
-    console.log("👨‍🏫 ====== FETCHING ALL RESULTS FOR EXAM ======");
-    console.log("📝 Exam ID:", req.params.examId);
-    console.log("👤 User Role:", req.user.role);
+    // console.log("👨‍🏫 ====== FETCHING ALL RESULTS FOR EXAM ======");
+    // console.log("📝 Exam ID:", req.params.examId);
+    // console.log("👤 User Role:", req.user.role);
 
     // Check permissions
     if (req.user.role !== "teacher" && req.user.role !== "admin") {
@@ -187,7 +187,7 @@ router.get("/exam/results/:examId", auth, async (req, res) => {
       .populate("student", "name email")
       .sort({ percentage: -1, createdAt: 1 });
 
-    console.log("✅ Found", results.length, "results");
+    // console.log("✅ Found", results.length, "results");
 
     // Add ranking
     const rankedResults = results.map((result, index) => ({
