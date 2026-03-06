@@ -1,4 +1,113 @@
 
+// const router = require("express").Router();
+// const bcrypt = require("bcryptjs");
+// const jwt = require("jsonwebtoken");
+
+// const User = require("../models/User");
+// const auth = require("../middleware/authMiddleware");
+// const role = require("../middleware/roleMiddleware");
+
+// /* =========================
+//    REGISTER
+// ========================= */
+// router.post("/register", async (req, res) => {
+//   try {
+//     const { name, email, password, role } = req.body;
+
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser)
+//       return res.status(400).json({ message: "User already exists" });
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     await User.create({
+//       name,
+//       email,
+//       password: hashedPassword,
+//       role: role || "student",
+//     });
+
+//     res.json({ message: "User registered successfully" });
+//   } catch (err) {
+//     res.status(500).json({ message: "Server error" });
+//   }
+// });
+
+// /* =========================
+//    LOGIN
+// ========================= */
+// router.post("/login", async (req, res) => {
+//   try {
+//     // console.log("LOGIN BODY:", req.body);
+
+//     const { email, password } = req.body;
+//     if (!email || !password) {
+//       return res.status(400).json({ message: "Email & password required" });
+//     }
+
+//     const user = await User.findOne({ email });
+//     if (!user)
+//       return res.status(400).json({ message: "Invalid credentials" });
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch)
+//       return res.status(400).json({ message: "Invalid credentials" });
+
+//     const token = jwt.sign(
+//       { id: user._id, role: user.role },
+//       process.env.JWT_SECRET,
+//       { expiresIn: "1d" }
+//     );
+
+//     res.json({
+//       token,
+//       user: {
+//         _id: user._id,
+//         name: user.name,
+//         email: user.email,
+//         role: user.role,
+//       },
+//     });
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// });
+
+// /* =========================
+//    CURRENT USER (FIXES AUTH BUG)
+// ========================= */
+// router.get("/me", auth, async (req, res) => {
+//   const user = await User.findById(req.user.id).select("-password");
+//   res.json(user);
+// });
+
+// /* =========================
+//    GET USERS (ADMIN)
+// ========================= */
+// router.get("/users", auth, role("admin"), async (req, res) => {
+//   const users = await User.find().select("-password");
+//   res.json(users);
+// });
+
+// /* =========================
+//    DELETE USER (ADMIN)
+// ========================= */
+// router.delete("/users/:id", auth, role("admin"), async (req, res) => {
+//   if (req.user.id === req.params.id) {
+//     return res.status(400).json({ message: "Admin cannot delete himself" });
+//   }
+
+//   await User.findByIdAndDelete(req.params.id);
+//   res.json({ message: "User deleted successfully" });
+// });
+
+// module.exports = router;
+
+
+
+
+
 const router = require("express").Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -14,22 +123,43 @@ router.post("/register", async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email and password are required",
+      });
+    }
+
     const existingUser = await User.findOne({ email });
-    if (existingUser)
-      return res.status(400).json({ message: "User already exists" });
+
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: "User already exists",
+      });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await User.create({
+    const user = await User.create({
       name,
       email,
       password: hashedPassword,
       role: role || "student",
     });
 
-    res.json({ message: "User registered successfully" });
+    res.status(201).json({
+      success: true,
+      message: "User registered successfully",
+      userId: user._id,
+    });
+
   } catch (err) {
-    res.status(500).json({ message: "Server error" });
+    console.error("REGISTER ERROR:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 });
 
@@ -38,20 +168,32 @@ router.post("/register", async (req, res) => {
 ========================= */
 router.post("/login", async (req, res) => {
   try {
-    // console.log("LOGIN BODY:", req.body);
-
     const { email, password } = req.body;
+
     if (!email || !password) {
-      return res.status(400).json({ message: "Email & password required" });
+      return res.status(400).json({
+        success: false,
+        message: "Email and password required",
+      });
     }
 
     const user = await User.findOne({ email });
-    if (!user)
-      return res.status(400).json({ message: "Invalid credentials" });
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid credentials",
+      });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ message: "Invalid credentials" });
+
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid credentials",
+      });
+    }
 
     const token = jwt.sign(
       { id: user._id, role: user.role },
@@ -60,6 +202,7 @@ router.post("/login", async (req, res) => {
     );
 
     res.json({
+      success: true,
       token,
       user: {
         _id: user._id,
@@ -68,18 +211,27 @@ router.post("/login", async (req, res) => {
         role: user.role,
       },
     });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Server error" });
+    console.error("LOGIN ERROR:", err);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 });
 
 /* =========================
-   CURRENT USER (FIXES AUTH BUG)
+   CURRENT USER
 ========================= */
 router.get("/me", auth, async (req, res) => {
   const user = await User.findById(req.user.id).select("-password");
-  res.json(user);
+
+  res.json({
+    success: true,
+    user,
+  });
 });
 
 /* =========================
@@ -87,19 +239,31 @@ router.get("/me", auth, async (req, res) => {
 ========================= */
 router.get("/users", auth, role("admin"), async (req, res) => {
   const users = await User.find().select("-password");
-  res.json(users);
+
+  res.json({
+    success: true,
+    users,
+  });
 });
 
 /* =========================
-   DELETE USER (ADMIN)
+   DELETE USER
 ========================= */
 router.delete("/users/:id", auth, role("admin"), async (req, res) => {
+
   if (req.user.id === req.params.id) {
-    return res.status(400).json({ message: "Admin cannot delete himself" });
+    return res.status(400).json({
+      success: false,
+      message: "Admin cannot delete himself",
+    });
   }
 
   await User.findByIdAndDelete(req.params.id);
-  res.json({ message: "User deleted successfully" });
+
+  res.json({
+    success: true,
+    message: "User deleted successfully",
+  });
 });
 
 module.exports = router;

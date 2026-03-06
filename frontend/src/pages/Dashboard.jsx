@@ -259,15 +259,23 @@ const endedExams = [...historyExams].sort((a, b) => {
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* ================= CREATE EXAM ================= */}
       {(role === "teacher" || role === "admin") && (
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          sx={{ mb: 3 }}
-          onClick={() => navigate("/create-exam")}
-        >
-          Create Exam
-        </Button>
-      )}
+  <Stack direction="row" spacing={2} mb={3}>
+    <Button
+      variant="contained"
+      startIcon={<AddIcon />}
+      onClick={() => navigate("/create-exam")}
+    >
+      Create Exam
+    </Button>
+
+    <Button
+      variant="outlined"
+      onClick={() => navigate("/add-question")}
+    >
+      Question Bank
+    </Button>
+  </Stack>
+)}
 
       {/* ================= STUDENT DASHBOARD ================= */}
       {role === "student" && (

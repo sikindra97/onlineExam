@@ -137,7 +137,7 @@ export default function Header() {
           {/* RIGHT (DESKTOP) */}
           <Box display={{ xs: "none", md: "flex" }} alignItems="center" gap={2}>
            <Chip
-  label={user.role.toUpperCase()}
+  label={user?.role?.toUpperCase()}
   size="small"
   sx={{
     bgcolor: "#ffffff",
@@ -244,10 +244,11 @@ export default function Header() {
 
           <Box mb={2} p={1} bgcolor="rgba(25,118,210,0.1)" borderRadius={1}>
             <Typography variant="body2" fontWeight="bold">
-              {user.name}
+             {user?.name}
+              
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              {user.role.toUpperCase()}
+              {user?.role?.toUpperCase()}
             </Typography>
           </Box>
 
