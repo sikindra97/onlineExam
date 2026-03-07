@@ -12,13 +12,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-/* =========================
-<<<<<<< HEAD
-   DATABASE
-=======
-   ROUTES
->>>>>>> 8bb14c0 (Updated exam system files)
-========================= */
+
 
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/exam", require("./routes/exam"));
