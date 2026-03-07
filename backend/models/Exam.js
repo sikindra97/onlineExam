@@ -24,7 +24,10 @@ enum: ["TIMED", "PRACTICE"],
 default: "TIMED",
 },
 
-duration: Number,
+duration: {
+type: Number,
+default: 30
+},
 
 startTime: Date,
 endTime: Date,

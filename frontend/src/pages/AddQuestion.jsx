@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import {
 Box,
 Typography,
@@ -16,8 +16,29 @@ export default function AddQuestion(){
 const [questionText,setQuestionText] = useState("");
 const [options,setOptions] = useState(["","","",""]);
 const [correctAnswer,setCorrectAnswer] = useState(0);
-const [subject,setSubject] = useState("math");
-const [difficulty,setDifficulty] = useState("medium");   // NEW
+
+const [subjects,setSubjects] = useState([]);   // NEW
+const [subject,setSubject] = useState("");     // NEW
+
+const [difficulty,setDifficulty] = useState("medium");
+
+/* LOAD SUBJECTS */
+
+useEffect(()=>{
+
+fetch("http://localhost:5000/api/subject")
+.then(res=>res.json())
+.then(data=>{
+
+setSubjects(data);
+
+if(data.length>0){
+setSubject(data[0].name);
+}
+
+});
+
+},[]);
 
 const updateOption=(i,val)=>{
 const arr=[...options];
@@ -35,7 +56,7 @@ questionText,
 options,
 correctAnswer:correctAnswer+1,
 subject,
-difficulty       // NEW
+difficulty
 
 });
 
@@ -81,13 +102,13 @@ value={subject}
 onChange={(e)=>setSubject(e.target.value)}
 >
 
-<MenuItem value="math">Math</MenuItem>
-<MenuItem value="java">Java</MenuItem>
-<MenuItem value="dsa">DSA</MenuItem>
+{subjects.map((sub)=>(
+<MenuItem key={sub._id} value={sub.name}>
+{sub.name}
+</MenuItem>
+))}
 
 </TextField>
-
-{/* NEW DIFFICULTY FIELD */}
 
 <TextField
 select
@@ -103,6 +124,7 @@ onChange={(e)=>setDifficulty(e.target.value)}
 </TextField>
 
 {options.map((opt,i)=>(
+
 <TextField
 key={i}
 label={`Option ${i+1}`}
@@ -110,6 +132,7 @@ value={opt}
 onChange={(e)=>updateOption(i,e.target.value)}
 fullWidth
 />
+
 ))}
 
 <TextField

@@ -1,32 +1,3 @@
-// const express = require("express");
-// const mongoose = require("mongoose");
-// const cors = require("cors");
-// require("dotenv").config();
-
-// const app = express();
-
-// app.use(cors());
-// app.use(express.json());
-
-// mongoose
-//   .connect(process.env.MONGO_URI)
-//   .then(() => {
-//     console.log("✅ MongoDB Connected");
-
-//     app.use("/api/auth", require("./routes/auth"));
-//     app.use("/api/exam", require("./routes/exam"));
-//     app.use("/api", require("./routes/result")); 
-
-//     app.use("/api/messages", require("./routes/message"));
-
-//     app.listen(5000, () => {
-//       console.log("🚀 Server running on port 5000");
-//     });
-//   })
-//   .catch((err) => {
-//     console.error("❌ MongoDB connection failed:", err.message);
-//   });
-
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -54,9 +25,13 @@ app.use("/api/exam", require("./routes/exam"));
 app.use("/api", require("./routes/result"));
 app.use("/api/messages", require("./routes/message"));
 
-/* NEW QUESTION BANK ROUTE */
+/* QUESTION ROUTE */
 
 app.use("/api/questions", require("./routes/question"));
+
+/* SUBJECT ROUTE */
+
+app.use("/api/subject", require("./routes/subject"));
 
 /* =========================
    DATABASE

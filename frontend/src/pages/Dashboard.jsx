@@ -1,597 +1,934 @@
-
-
 import { useEffect, useState } from "react";
 import {
   Container,
   Typography,
-  Button,
-  Card,
-  CardContent,
-  CardActions,
   Grid,
-  Chip,
-  Stack,
   CircularProgress,
   Box,
-  Divider,
+  Stack,
+  Button
 } from "@mui/material";
-import {
-  Add as AddIcon,
-  PlayArrow as StartIcon,
-  Delete as DeleteIcon,
-} from "@mui/icons-material";
+
+import AddIcon from "@mui/icons-material/Add";
+import EmailIcon from "@mui/icons-material/Email";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
+
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import { useAuth } from "../contexts/AuthContext";
-import { useSearchParams } from "react-router-dom";
+import ExamCard from "../components/ExamCard";
 
-/* =========================
-   Safe Date Formatter
-========================= */
-const formatDateTime = (value) => {
-  if (!value) return "Not Scheduled";
-  const d = new Date(value);
-  if (isNaN(d.getTime())) return "Not Scheduled";
-  return d.toLocaleString("en-IN");
-};
+export default function Dashboard({ filter }) {
 
-/* =========================
-   CARD HOVER STYLE
-========================= */
-const cardHoverStyle = {
-  height: "100%",
-  transition: "all 0.3s ease",
-  "&:hover": {
-    transform: "translateY(-6px)",
-    boxShadow: "0 0 18px rgba(25,118,210,0.45)",
-  },
-};
-
-export default function Dashboard() {
   const { user } = useAuth();
   const role = user?.role;
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const filter = searchParams.get("filter");
-  const view = searchParams.get("view"); // New parameter for view type
 
-  const [exams, setExams] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [messageCount, setMessageCount] = useState(0);
+  const [exams,setExams] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [messageCount,setMessageCount] = useState(0);
 
+  /* ================= FETCH EXAMS ================= */
 
-  /* =========================
-     FETCH EXAMS
-  ========================= */
   const fetchExams = async () => {
+
     try {
+
       const res = await api.get("/exam");
-      setExams(res.data);
-    } catch (err) {
+
+      const sorted = res.data.sort(
+        (a,b)=> new Date(b.startTime) - new Date(a.startTime)
+      );
+
+      setExams(sorted);
+
+    }
+    catch(err){
       console.error(err);
-    } finally {
+    }
+    finally{
       setLoading(false);
     }
+
   };
-  /* =========================
-   FETCH CONTACT MESSAGES COUNT (ADMIN / TEACHER)
-========================= */
-const fetchMessageCount = async () => {
-  try {
-    const res = await api.get("/messages");
-    setMessageCount(res.data.length);
-  } catch (err) {
-    console.error(err);
-  }
-};
 
-useEffect(() => {
-  // fetch exams for everyone
-  fetchExams();
+  /* ================= FETCH MESSAGE COUNT ================= */
 
-  // fetch messages only for admin / teacher
-  if (role === "admin" || role === "teacher") {
-    fetchMessageCount();
-  }
+  const fetchMessageCount = async () => {
 
-  const interval = setInterval(() => {
+    try{
+
+      const res = await api.get("/messages");
+      setMessageCount(res.data.length);
+
+    }
+    catch(err){
+      console.error(err);
+    }
+
+  };
+
+  /* ================= USE EFFECT ================= */
+
+  useEffect(()=>{
+
     fetchExams();
 
-    if (role === "admin" || role === "teacher") {
+    if(role === "admin" || role === "teacher"){
       fetchMessageCount();
     }
-  }, 30000);
 
-  return () => clearInterval(interval);
-}, [role]);
+    const interval = setInterval(()=>{
 
-  /* =========================
-     DELETE EXAM (ADMIN ONLY)
-  ========================= */
-  const deleteExam = async (examId) => {
-    if (!window.confirm("Are you sure you want to delete this exam?")) return;
-    try {
-      await api.delete(`/exam/${examId}`);
       fetchExams();
-    } catch {
-      alert("Delete failed");
-    }
-  };
 
-  if (loading) {
-    return (
-      <Container sx={{ py: 6, textAlign: "center" }}>
-        <CircularProgress />
+      if(role === "admin" || role === "teacher"){
+        fetchMessageCount();
+      }
+
+    },30000);
+
+    return ()=> clearInterval(interval);
+
+  },[role]);
+
+  if(loading){
+    return(
+      <Container sx={{py:6,textAlign:"center"}}>
+        <CircularProgress/>
       </Container>
     );
   }
 
-  /* =========================
-     FILTER EXAMS BASED ON URL PARAM
-  ========================= */
+  /* ================= GROUP EXAMS ================= */
+
+const activeExams = exams.filter(
+  e =>
+    ((e.status === "LIVE" || e.status === "UPCOMING") ||
+      e.examType === "PRACTICE") &&
+    (!e.hasAttempted || e.examType === "PRACTICE")
+);
+
+const upcomingExams = exams.filter(
+  e => e.status === "UPCOMING" && !e.hasAttempted
+);
+  const liveExams = exams.filter(
+  e => e.status === "LIVE" && !e.hasAttempted
+);
+
+const historyExams = exams.filter(
+  e => (e.hasAttempted && e.examType !== "PRACTICE") || e.status === "ENDED"
+);
+
+  /* ================= FILTER ROUTES ================= */
+
   let filteredExams = exams;
 
-  if (filter) {
-    switch (filter) {
-      case "ACTIVE":
-        filteredExams = exams.filter(e => 
-          e.status === "LIVE" || e.examType === "PRACTICE"
-        );
-        break;
-      case "UPCOMING":
-        filteredExams = exams.filter(e => e.status === "UPCOMING");
-        break;
-      case "LIVE":
-        filteredExams = exams.filter(e => e.status === "LIVE");
-        break;
-      case "HISTORY":
-        filteredExams = exams.filter(e => e.hasAttempted || e.status === "ENDED");
-        break;
-      default:
-        filteredExams = exams;
-    }
-  }
+  if(filter==="active") filteredExams = activeExams;
+  if(filter==="upcoming") filteredExams = upcomingExams;
+  if(filter==="live") filteredExams = liveExams;
+  if(filter==="history") filteredExams = historyExams;
 
-  /* =========================
-     STUDENT FILTERS
-  ========================= */
-  const activeExams = exams.filter(
-    (e) =>
-      e.status === "LIVE" ||
-      e.status === "UPCOMING" ||
-      e.examType === "PRACTICE"
-  );
+  /* ================= ADMIN / TEACHER DASHBOARD ================= */
 
-  const historyExams = exams.filter(
-    (e) => e.hasAttempted || e.status === "ENDED"
-  );
-const endedExams = [...historyExams].sort((a, b) => {
-  return (b.hasAttempted === true) - (a.hasAttempted === true);
-});
+  if(role === "admin" || role === "teacher"){
 
-  // If view is "history", show only history view
-  if (view === "history") {
-    return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Typography variant="h4" mb={4} fontWeight="bold">
-          Exam History
-        </Typography>
-        
-        {historyExams.length === 0 ? (
-          <Card sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="text.secondary">
-              No exam history yet
-            </Typography>
-          </Card>
-        ) : (
-          <Grid container spacing={3}>
-            {historyExams.map((exam) => (
-              <Grid item xs={12} md={6} lg={4} key={exam._id}>
-                <Card sx={cardHoverStyle}>
-                  <CardContent>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="h6">{exam.title}</Typography>
-                      <Chip 
-                        label={exam.status} 
-                        size="small" 
-                        color={exam.status === "ENDED" ? "default" : "primary"}
-                      />
-                    </Stack>
-                    
-                    <Typography color="text.secondary" mt={1}>
-                      {exam.description}
-                    </Typography>
-                    
-                    <Typography variant="body2" mt={2}>
-                      <strong>Date:</strong> {formatDateTime(exam.startTime)}
-                    </Typography>
-                    
-                    {exam.examType && (
-                      <Typography variant="body2" mt={1}>
-                        <strong>Type:</strong> {exam.examType}
-                      </Typography>
-                    )}
-                    
-                    {exam.hasAttempted && (
-                      <Typography variant="body2" mt={1} color="success.main">
-                        <strong>Attempted</strong>
-                      </Typography>
-                    )}
-                  </CardContent>
-                  
-                  <CardActions sx={{ p: 2, pt: 0 }}>
-                    <Button 
-                      fullWidth 
-                      variant="outlined"
-                      onClick={() => {
-                        // For students, navigate to their specific result
-                        if (user?.role === "student") {
-                          navigate(`/exam/result/${exam._id}`);
-                        } else {
-                          // For teachers/admins, use the existing route
-                          navigate(`/exam/results/${exam._id}`);
-                        }
-                      }}
-                    >
-                      View Results
-                    </Button>
-                  </CardActions>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        )}
-        
-        <Box sx={{ textAlign: 'center', mt: 4 }}>
-          <Button 
-            variant="contained" 
-            onClick={() => navigate("/")}
-          >
-            Back to Dashboard
-          </Button>
-        </Box>
-      </Container>
-    );
-  }
+    return(
 
-  // Normal dashboard view
-  return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* ================= CREATE EXAM ================= */}
-      {(role === "teacher" || role === "admin") && (
-  <Stack direction="row" spacing={2} mb={3}>
-    <Button
+      <Container maxWidth="lg" sx={{py:4}}>
+
+      {/* DASHBOARD ACTIONS */}
+
+      <Stack direction="row" spacing={2} mb={3} flexWrap="wrap">
+
+      <Button
       variant="contained"
-      startIcon={<AddIcon />}
-      onClick={() => navigate("/create-exam")}
-    >
+      startIcon={<AddIcon/>}
+      onClick={()=>navigate("/create-exam")}
+      >
       Create Exam
-    </Button>
+      </Button>
 
-    <Button
+      <Button
       variant="outlined"
-      onClick={() => navigate("/add-question")}
-    >
+      startIcon={<MenuBookIcon/>}
+      onClick={()=>navigate("/add-question")}
+      >
       Question Bank
-    </Button>
-  </Stack>
-)}
+      </Button>
 
-      {/* ================= STUDENT DASHBOARD ================= */}
-      {role === "student" && (
-        <>
-          {/* Show filtered title if filter is active */}
-          {filter ? (
-            <Typography variant="h5" mb={2}>
-              {filter === "ACTIVE" && "Active Exams"}
-              {filter === "UPCOMING" && "Upcoming Exams"}
-              {filter === "LIVE" && "Live Exams"}
-              {filter === "HISTORY" && "Exam History"}
+      <Button
+      variant="outlined"
+      startIcon={<EmailIcon/>}
+      onClick={()=>navigate("/admin/messages")}
+      >
+      Messages ({messageCount})
+      </Button>
+
+      <Button
+      variant="outlined"
+      startIcon={<MenuBookIcon/>}
+      onClick={()=>navigate("/subjects")}
+      >
+      Subjects
+      </Button>
+
+      </Stack>
+
+        <Typography variant="h5" mb={3}>
+          All Exams
+        </Typography>
+
+        <Grid container spacing={3}>
+
+          {exams.map(exam=>(
+            <Grid item xs={12} md={6} lg={4} key={exam._id}>
+              <ExamCard
+                exam={exam}
+                role={role}
+                navigate={navigate}
+              />
+            </Grid>
+          ))}
+
+        </Grid>
+
+      </Container>
+
+    );
+
+  }
+
+  /* ================= FILTER PAGE ================= */
+
+  if(filter){
+
+    return(
+
+      <Container maxWidth="lg" sx={{py:4}}>
+
+        <Typography variant="h5" mb={3}>
+          {filter.toUpperCase()} Exams
+        </Typography>
+
+        {filteredExams.length === 0 ? (
+          <Box textAlign="center" py={5}>
+            <Typography color="text.secondary">
+              No {filter} exams available
             </Typography>
-          ) : (
-            /* Default view when no filter */
-            <>
-              {/* ACTIVE / UPCOMING / PRACTICE */}
-              <Typography variant="h5" mb={2}>
-                Active & Upcoming Exams
-              </Typography>
+          </Box>
+        ) : (
 
-              <Grid container spacing={3} mb={4}>
-                {activeExams.map((exam) => (
-                  <Grid item xs={12} md={6} lg={4} key={exam._id}>
-                    <ExamCard exam={exam} user={user} role={role} navigate={navigate} />
-                  </Grid>
-                ))}
-              </Grid>
-
-              {/* EXAM HISTORY FULL WIDTH */}
-              <Box mb={4}>
-                <Typography variant="h5" mb={2}>
-                  Exam History
-                </Typography>
-                <Card sx={cardHoverStyle}>
-                  <CardContent>
-                    {historyExams.length === 0 ? (
-                      <Typography color="text.secondary">
-                        No exam history yet
-                      </Typography>
-                    ) : (
-                      <>
-                        {/* Show only 2 exam history items */}
-                        {historyExams.slice(0, 2).map((exam) => (
-                          <Box key={exam._id} mb={2}>
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                              alignItems="center"
-                            >
-                              <Box>
-                                <Typography fontWeight={600} fontSize="1.1rem">
-                                  {exam.title}
-                                </Typography>
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                >
-                                  {formatDateTime(exam.startTime)}
-                                </Typography>
-                              </Box>
-                              <Chip 
-                                label={exam.status} 
-                                size="small" 
-                                color={exam.status === "ENDED" ? "default" : "primary"}
-                              />
-                            </Stack>
-                            <Divider sx={{ mt: 1.5 }} />
-                          </Box>
-                        ))}
-
-                        {/* Show "SHOW MORE" button if there are more than 2 exams */}
-                        {historyExams.length > 2 && (
-                          <Box sx={{ textAlign: 'center', mt: 3 }}>
-                            <Button
-                              variant="outlined"
-                              onClick={() => navigate("/?view=history")}
-                              sx={{ 
-                                textTransform: 'uppercase',
-                                fontWeight: 'bold'
-                              }}
-                            >
-                              SHOW MORE
-                            </Button>
-                          </Box>
-                        )}
-                      </>
-                    )}
-                  </CardContent>
-                </Card>
-              </Box>
-
-              <Typography variant="h5" mb={2}>
-                Ended / Attempted Exams
-              </Typography>
-            </>
-          )}
-
-          {/* ================= EXAM CARDS ================= */}
           <Grid container spacing={3}>
-            {(filter ? filteredExams : (role === "student" ? endedExams : exams)).map((exam) => (
+
+            {filteredExams.map(exam=>(
               <Grid item xs={12} md={6} lg={4} key={exam._id}>
                 <ExamCard
                   exam={exam}
-                  user={user}
                   role={role}
                   navigate={navigate}
-                  deleteExam={deleteExam}
                 />
               </Grid>
             ))}
-          </Grid>
-        </>
-      )}
 
-{/* ================= CONTACT MESSAGES ================= */}
-{(role === "teacher" || role === "admin") && (
-  <Card
-    sx={{
-      mb: 4,
-      p: 2,
-      cursor: "pointer",
-      background: "linear-gradient(135deg, #1976d2, #42a5f5)",
-      color: "white",
-    }}
-    onClick={() => navigate("/admin/messages")}
-  >
-    <Stack direction="row" justifyContent="space-between" alignItems="center">
-      <Box>
-        <Typography variant="h6" fontWeight="bold">
-          Contact Messages
-        </Typography>
-        <Typography variant="body2">
-          Messages sent by students
+          </Grid>
+
+        )}
+
+      </Container>
+
+    );
+
+  }
+
+  /* ================= STUDENT DASHBOARD ================= */
+
+  return (
+
+    <Container maxWidth="lg" sx={{py:4}}>
+
+      {/* ACTIVE */}
+
+      <Box id="active">
+        <Typography variant="h5" mb={2}>
+          Active Exams
         </Typography>
       </Box>
 
-      <Chip
-        label={messageCount}
-        color="error"
-        sx={{
-          fontWeight: "bold",
-          fontSize: "1rem",
-          bgcolor: "white",
-          color: "#1976d2",
-        }}
-      />
-    </Stack>
-  </Card>
-)}
+      <Grid container spacing={3} mb={4}>
 
-      {/* ================= TEACHER/ADMIN DASHBOARD ================= */}
-      {(role === "teacher" || role === "admin") && (
-        <>
-          <Typography variant="h5" mb={2}>
-            All Exams
-          </Typography>
-          <Grid container spacing={3}>
-            {exams.map((exam) => (
-              <Grid item xs={12} md={6} lg={4} key={exam._id}>
-                <ExamCard
-                  exam={exam}
-                  user={user}
-                  role={role}
-                  navigate={navigate}
-                  deleteExam={deleteExam}
-                />
-              </Grid>
-            ))}
+        {activeExams.length === 0 ? (
+          <Grid item xs={12}>
+            <Typography color="text.secondary">
+              No Active Exams
+            </Typography>
           </Grid>
-        </>
-      )}
+        ) : activeExams.map(exam=>(
+          <Grid item xs={12} md={6} lg={4} key={exam._id}>
+            <ExamCard
+              exam={exam}
+              role={role}
+              navigate={navigate}
+            />
+          </Grid>
+        ))}
+
+      </Grid>
+
+      {/* UPCOMING */}
+
+      <Box id="upcoming">
+        <Typography variant="h5" mb={2}>
+          Upcoming Exams
+        </Typography>
+      </Box>
+
+      <Grid container spacing={3} mb={4}>
+
+        {upcomingExams.length === 0 ? (
+          <Grid item xs={12}>
+            <Typography color="text.secondary">
+              No Upcoming Exams
+            </Typography>
+          </Grid>
+        ) : upcomingExams.map(exam=>(
+          <Grid item xs={12} md={6} lg={4} key={exam._id}>
+            <ExamCard
+              exam={exam}
+              role={role}
+              navigate={navigate}
+            />
+          </Grid>
+        ))}
+
+      </Grid>
+
+      {/* LIVE */}
+
+      <Box id="live">
+        <Typography variant="h5" mb={2}>
+          Live Exams
+        </Typography>
+      </Box>
+
+      <Grid container spacing={3} mb={4}>
+
+        {liveExams.length === 0 ? (
+          <Grid item xs={12}>
+            <Typography color="text.secondary">
+              No Live Exams
+            </Typography>
+          </Grid>
+        ) : liveExams.map(exam=>(
+          <Grid item xs={12} md={6} lg={4} key={exam._id}>
+            <ExamCard
+              exam={exam}
+              role={role}
+              navigate={navigate}
+            />
+          </Grid>
+        ))}
+
+      </Grid>
+
+      {/* HISTORY */}
+
+      <Box id="history">
+        <Typography variant="h5" mb={2}>
+          Exam History
+        </Typography>
+      </Box>
+
+      <Grid container spacing={3}>
+
+        {historyExams.length === 0 ? (
+          <Grid item xs={12}>
+            <Typography color="text.secondary">
+              No Exam History
+            </Typography>
+          </Grid>
+        ) : historyExams.map(exam=>(
+          <Grid item xs={12} md={6} lg={4} key={exam._id}>
+            <ExamCard
+              exam={exam}
+              role={role}
+              navigate={navigate}
+            />
+          </Grid>
+        ))}
+
+      </Grid>
+
     </Container>
+
   );
+
 }
 
-/* =========================
-   EXAM CARD
-========================= */
-function ExamCard({ exam, user, role, navigate, deleteExam }) {
-  return (
-    <Card sx={cardHoverStyle}>
-      <CardContent>
-        <Stack direction="row" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">{exam.title}</Typography>
-          <Chip 
-            label={exam.examType} 
-            size="small" 
-            color={exam.examType === "PRACTICE" ? "primary" : "default"}
-            variant="outlined"
-          />
-        </Stack>
-        {exam.hasAttempted && role === "student" && (
-  <Chip
-    label="ATTEMPTED"
-    size="small"
-    color="success"
-    sx={{
-      mt: 1,
-      fontWeight: 600,
-      width: "fit-content",
-    }}
-  />
-)}
 
 
-        <Typography color="text.secondary" mt={1}>
-          {exam.description}
-        </Typography>
 
-        <Typography variant="body2" mt={1}>
-          {exam.examType === "PRACTICE"
-            ? "Practice Exam (Anytime)"
-            : `Starts at: ${formatDateTime(exam.startTime)}`}
-        </Typography>
-      </CardContent>
 
-      <CardActions sx={{ p: 2, pt: 0 }}>
-        {role === "student" && (
-          <>
-            {exam.examType === "TIMED" && exam.hasAttempted && (
-              <Button 
-                fullWidth 
-                variant="outlined"
-                onClick={() => {
-                  // For students, navigate to their specific result
-                  navigate(`/exam/result/${exam._id}`);
-                }}
-              >
-                View Results
-              </Button>
-            )}
 
-            {exam.examType === "TIMED" &&
-              exam.status === "LIVE" &&
-              !exam.hasAttempted && (
-                <Button
-                  fullWidth
-                  variant="contained"
-                  startIcon={<StartIcon />}
-                  onClick={() => navigate(`/exam/${exam._id}`)}
-                >
-                  Start Exam
-                </Button>
-              )}
+// import { useEffect, useState } from "react";
+// import {
+// Container,
+// Typography,
+// Button,
+// Card,
+// CardContent,
+// CardActions,
+// Grid,
+// Chip,
+// Stack,
+// CircularProgress,
+// Box,
+// Divider,
+// } from "@mui/material";
 
-            {exam.examType === "PRACTICE" && (
-              <Button
-                fullWidth
-                variant="contained"
-                startIcon={<StartIcon />}
-                onClick={() => navigate(`/exam/${exam._id}`)}
-                sx={{ fontWeight: 'bold' }}
-              >
-                PRACTICE NOW
-              </Button>
-            )}
+// import {
+// Add as AddIcon,
+// PlayArrow as StartIcon,
+// Delete as DeleteIcon,
+// } from "@mui/icons-material";
 
-            {(exam.status === "UPCOMING" ||
-              exam.status === "ENDED") && (
-              <Button fullWidth disabled>
-                {exam.status}
-              </Button>
-            )}
-          </>
-        )}
+// import { useNavigate } from "react-router-dom";
+// import api from "../api/axios";
+// import { useAuth } from "../contexts/AuthContext";
+// import { useSearchParams } from "react-router-dom";
 
-        {(role === "teacher" || role === "admin") && (
-          <Stack spacing={1} width="100%">
-            {exam.examType === "TIMED" && exam.status === "LIVE" && (
-              <Button
-                variant="contained"
-                onClick={() =>
-                  navigate(`/exam/results/live/${exam._id}`)
-                }
-              >
-                View Live Results
-              </Button>
-            )}
+// const formatDateTime = (value) => {
+// if (!value) return "Not Scheduled";
+// const d = new Date(value);
+// if (isNaN(d.getTime())) return "Not Scheduled";
+// return d.toLocaleString("en-IN");
+// };
 
-            {exam.examType === "TIMED" && exam.status === "ENDED" && (
-              <Button
-                variant="outlined"
-                color="success"
-                onClick={() =>
-                  navigate(`/exam/results/${exam._id}`)
-                }
-              >
-                View Final Results
-              </Button>
-            )}
+// const cardHoverStyle = {
+// height: "100%",
+// transition: "all 0.3s ease",
+// "&:hover": {
+// transform: "translateY(-6px)",
+// boxShadow: "0 0 18px rgba(25,118,210,0.45)",
+// },
+// };
 
-            {(exam.examType === "PRACTICE" ||
-              exam.status === "UPCOMING") && (
-              <Button
-                variant="contained"
-                onClick={() =>
-                  navigate(`/exam/edit/${exam._id}`)
-                }
-              >
-                Edit Exam
-              </Button>
-            )}
+// export default function Dashboard(){
 
-            {role === "admin" && (
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<DeleteIcon />}
-                onClick={() => deleteExam(exam._id)}
-              >
-                Delete Exam
-              </Button>
-            )}
-          </Stack>
-        )}
-      </CardActions>
-    </Card>
-  );
-}
+// // ✅ FIX: get loading from AuthContext
+// const { user, loading: authLoading } = useAuth();
+
+// const role = user?.role;
+// const navigate = useNavigate();
+// const [searchParams] = useSearchParams();
+
+// const filter = searchParams.get("filter");
+// const view = searchParams.get("view");
+
+// const [exams,setExams] = useState([]);
+// const [loading,setLoading] = useState(true);
+// const [messageCount,setMessageCount] = useState(0);
+
+// /* =========================
+// WAIT FOR AUTH USER
+// ========================= */
+
+// if(authLoading){
+// return(
+// <Container sx={{py:6,textAlign:"center"}}>
+// <CircularProgress/>
+// </Container>
+// );
+// }
+
+// /* =========================
+// FETCH EXAMS
+// ========================= */
+
+// const fetchExams = async () => {
+
+// try{
+// const res = await api.get("/exam");
+// setExams(res.data);
+// }catch(err){
+// console.error(err);
+// }finally{
+// setLoading(false);
+// }
+
+// };
+
+// /* =========================
+// FETCH CONTACT MESSAGES
+// ========================= */
+
+// const fetchMessageCount = async () => {
+
+// try{
+// const res = await api.get("/messages");
+// setMessageCount(res.data.length);
+// }catch(err){
+// console.error(err);
+// }
+
+// };
+
+// useEffect(()=>{
+
+// fetchExams();
+
+// if(role === "admin" || role === "teacher"){
+// fetchMessageCount();
+// }
+
+// const interval = setInterval(()=>{
+
+// fetchExams();
+
+// if(role === "admin" || role === "teacher"){
+// fetchMessageCount();
+// }
+
+// },30000);
+
+// return ()=> clearInterval(interval);
+
+// },[role]);
+
+// /* =========================
+// DELETE EXAM
+// ========================= */
+
+// const deleteExam = async (examId) => {
+
+// if(!window.confirm("Are you sure you want to delete this exam?")) return;
+
+// try{
+// await api.delete(`/exam/${examId}`);
+// fetchExams();
+// }catch{
+// alert("Delete failed");
+// }
+
+// };
+
+// if(loading){
+// return(
+// <Container sx={{py:6,textAlign:"center"}}>
+// <CircularProgress/>
+// </Container>
+// );
+// }
+
+// /* =========================
+// FILTER LOGIC
+// ========================= */
+
+// let filteredExams = exams;
+
+// if(filter){
+
+// switch(filter){
+
+// case "ACTIVE":
+// filteredExams = exams.filter(e =>
+// e.status === "LIVE" ||
+// e.status === "UPCOMING" ||
+// e.examType === "PRACTICE"
+// );
+// break;
+
+// case "UPCOMING":
+// filteredExams = exams.filter(e => e.status === "UPCOMING");
+// break;
+
+// case "LIVE":
+// filteredExams = exams.filter(e => e.status === "LIVE");
+// break;
+
+// case "HISTORY":
+// filteredExams = exams.filter(e =>
+// e.hasAttempted || e.status === "ENDED"
+// );
+// break;
+
+// default:
+// filteredExams = exams;
+
+// }
+
+// }
+
+// const activeExams = exams.filter(e =>
+// e.status === "LIVE" ||
+// e.status === "UPCOMING" ||
+// e.examType === "PRACTICE"
+// );
+
+// const historyExams = exams.filter(e =>
+// e.hasAttempted || e.status === "ENDED"
+// );
+
+// const endedExams = [...historyExams].sort((a,b)=>{
+// return (b.hasAttempted === true) - (a.hasAttempted === true);
+// });
+
+// /* =========================
+// HISTORY PAGE
+// ========================= */
+
+// if(view === "history"){
+
+// return(
+
+// <Container maxWidth="lg" sx={{py:4}}>
+
+// <Typography variant="h4" mb={4} fontWeight="bold">
+// Exam History
+// </Typography>
+
+// {historyExams.length === 0 ? (
+
+// <Card sx={{p:4,textAlign:"center"}}>
+// <Typography color="text.secondary">
+// No exam history yet
+// </Typography>
+// </Card>
+
+// ) : (
+
+// <Grid container spacing={3}>
+
+// {historyExams.map((exam)=>(
+
+// <Grid item xs={12} md={6} lg={4} key={exam._id}>
+
+// <Card sx={cardHoverStyle}>
+
+// <CardContent>
+
+// <Stack direction="row" justifyContent="space-between">
+
+// <Typography variant="h6">
+// {exam.title}
+// </Typography>
+
+// <Chip label={exam.status} size="small"/>
+
+// </Stack>
+
+// <Typography color="text.secondary" mt={1}>
+// {exam.description}
+// </Typography>
+
+// <Typography variant="body2" mt={2}>
+// <strong>Date:</strong> {formatDateTime(exam.startTime)}
+// </Typography>
+
+// </CardContent>
+
+// <CardActions sx={{p:2,pt:0}}>
+
+// <Button
+// fullWidth
+// variant="outlined"
+// onClick={()=>{
+
+// if(user?.role === "student"){
+// navigate(`/exam/result/${exam._id}`);
+// }else{
+// navigate(`/exam/results/${exam._id}`);
+// }
+
+// }}
+// >
+
+// View Results
+
+// </Button>
+
+// </CardActions>
+
+// </Card>
+
+// </Grid>
+
+// ))}
+
+// </Grid>
+
+// )}
+
+// <Box sx={{textAlign:"center",mt:4}}>
+
+// <Button
+// variant="contained"
+// onClick={()=>navigate("/")}>
+// Back to Dashboard
+// </Button>
+
+// </Box>
+
+// </Container>
+
+// );
+
+// }
+
+// /* =========================
+// MAIN DASHBOARD
+// ========================= */
+
+// return(
+
+// <Container maxWidth="lg" sx={{py:4}}>
+
+// {(role === "teacher" || role === "admin") && (
+
+// <Stack direction="row" spacing={2} mb={3}>
+
+// <Button
+// variant="contained"
+// startIcon={<AddIcon/>}
+// onClick={()=>navigate("/create-exam")}
+// >
+
+// Create Exam
+
+// </Button>
+
+// <Button
+// variant="outlined"
+// onClick={()=>navigate("/add-question")}
+// >
+
+// Question Bank
+
+// </Button>
+
+// </Stack>
+
+// )}
+
+// {/* STUDENT DASHBOARD */}
+
+// {role === "student" && (
+
+// <>
+
+// <Typography variant="h5" mb={2}>
+// Active & Upcoming Exams
+// </Typography>
+
+// <Grid container spacing={3} mb={4}>
+
+// {activeExams.map((exam)=>(
+
+// <Grid item xs={12} md={6} lg={4} key={exam._id}>
+
+// <ExamCard
+// exam={exam}
+// user={user}
+// role={role}
+// navigate={navigate}
+// />
+
+// </Grid>
+
+// ))}
+
+// </Grid>
+
+// <Box mb={4}>
+
+// <Typography variant="h5" mb={2}>
+// Exam History
+// </Typography>
+
+// <Card sx={cardHoverStyle}>
+
+// <CardContent>
+
+// {historyExams.length === 0 ? (
+
+// <Typography color="text.secondary">
+// No exam history yet
+// </Typography>
+
+// ) : (
+
+// historyExams.slice(0,2).map((exam)=>(
+
+// <Box key={exam._id} mb={2}>
+
+// <Stack
+// direction="row"
+// justifyContent="space-between"
+// alignItems="center"
+// >
+
+// <Box>
+
+// <Typography fontWeight={600}>
+// {exam.title}
+// </Typography>
+
+// <Typography variant="body2" color="text.secondary">
+// {formatDateTime(exam.startTime)}
+// </Typography>
+
+// </Box>
+
+// <Chip label={exam.status} size="small"/>
+
+// </Stack>
+
+// <Divider sx={{mt:1.5}}/>
+
+// </Box>
+
+// ))
+
+// )}
+
+// </CardContent>
+
+// </Card>
+
+// </Box>
+
+// <Typography variant="h5" mb={2}>
+// Ended / Attempted Exams
+// </Typography>
+
+// </>
+
+// )}
+
+// <Grid container spacing={3}>
+
+// {(filter ? filteredExams : (role === "student" ? endedExams : exams)).map((exam)=>(
+
+// <Grid item xs={12} md={6} lg={4} key={exam._id}>
+
+// <ExamCard
+// exam={exam}
+// user={user}
+// role={role}
+// navigate={navigate}
+// deleteExam={deleteExam}
+// />
+
+// </Grid>
+
+// ))}
+
+// </Grid>
+
+// </Container>
+
+// );
+
+// }
+
+// /* =========================
+// EXAM CARD
+// ========================= */
+
+// function ExamCard({exam,user,role,navigate,deleteExam}){
+
+// return(
+
+// <Card sx={cardHoverStyle}>
+
+// <CardContent>
+
+// <Stack direction="row" justifyContent="space-between">
+
+// <Typography variant="h6">
+// {exam.title}
+// </Typography>
+
+// <Chip
+// label={exam.examType}
+// size="small"
+// variant="outlined"
+// />
+
+// </Stack>
+
+// {exam.hasAttempted && role === "student" && (
+
+// <Chip
+// label="ATTEMPTED"
+// size="small"
+// color="success"
+// sx={{mt:1}}
+// />
+
+// )}
+
+// <Typography color="text.secondary" mt={1}>
+// {exam.description}
+// </Typography>
+
+// <Typography variant="body2" mt={1}>
+// {exam.examType === "PRACTICE"
+// ? "Practice Exam (Anytime)"
+// : `Starts at: ${formatDateTime(exam.startTime)}`}
+// </Typography>
+
+// </CardContent>
+
+// <CardActions sx={{p:2,pt:0}}>
+
+// {role === "student" && (
+
+// <Button
+// fullWidth
+// variant="contained"
+// startIcon={<StartIcon/>}
+// onClick={()=>navigate(`/exam/${exam._id}`)}
+// >
+
+// Start Exam
+
+// </Button>
+
+// )}
+
+// {(role === "teacher" || role === "admin") && (
+
+// <Stack spacing={1} width="100%">
+
+// <Button
+// variant="contained"
+// onClick={()=>navigate(`/exam/edit/${exam._id}`)}
+// >
+// Edit Exam
+// </Button>
+
+// {role === "admin" && (
+
+// <Button
+// variant="outlined"
+// color="error"
+// startIcon={<DeleteIcon/>}
+// onClick={()=>deleteExam(exam._id)}
+// >
+// Delete Exam
+// </Button>
+
+// )}
+
+// </Stack>
+
+// )}
+
+// </CardActions>
+
+// </Card>
+
+// );
+
+// }

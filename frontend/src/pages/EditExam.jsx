@@ -194,9 +194,6 @@ export default function EditExam() {
         </Stack>
       </Paper>
 
-      <Typography variant="h5" mb={2}>
-        Questions
-      </Typography>
 
       {exam.questions.map((q, qIndex) => (
         <Card key={qIndex} sx={{ mb: 3 }}>
@@ -250,19 +247,18 @@ export default function EditExam() {
         </Card>
       ))}
 
-      <Button startIcon={<Add />} variant="outlined" onClick={addQuestion}>
-        Add Question
-      </Button>
-
+  
       <Divider sx={{ my: 4 }} />
 
       <Stack direction="row" spacing={2}>
         <Button variant="contained" color="success" onClick={saveChanges}>
           Save Changes
         </Button>
-        <Button variant="contained" color="error" onClick={deleteExam}>
-          Delete Exam
-        </Button>
+      {exam?.createdByRole === "admin" && (
+<Button variant="contained" color="error" onClick={deleteExam}>
+  Delete Exam
+</Button>
+)}
       </Stack>
     </Box>
   );
