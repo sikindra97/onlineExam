@@ -17,20 +17,21 @@ export const AuthProvider = ({ children }) => {
 
     api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
 
-    api.get("/auth/me")
-      .then(res => setUser(res.data))
-      .catch(() => {
-        localStorage.removeItem("token");
-        delete api.defaults.headers.common["Authorization"];
-      })
-      .finally(() => setLoading(false));
+   api.get("/auth/me")
+  .then(res => setUser(res.data.user))
+  .catch(() => {
+    localStorage.removeItem("token");
+    delete api.defaults.headers.common["Authorization"];
+  })
+  .finally(() => setLoading(false));
   }, []);
 
   const login = (token, user) => {
-    localStorage.setItem("token", token);
-    api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-    setUser(user);
-  };
+  localStorage.setItem("token", token);
+  localStorage.setItem("user", JSON.stringify(user));
+  api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+  setUser(user);
+};
 
   const logout = () => {
     localStorage.removeItem("token");
