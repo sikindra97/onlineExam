@@ -5,7 +5,9 @@ const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(
+    JSON.parse(localStorage.getItem("user")) || null
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,10 +36,11 @@ export const AuthProvider = ({ children }) => {
 };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    delete api.defaults.headers.common["Authorization"];
-    setUser(null);
-  };
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  delete api.defaults.headers.common["Authorization"];
+  setUser(null);
+};
 
   return (
     <AuthContext.Provider value={{ user, login, logout, loading }}>
