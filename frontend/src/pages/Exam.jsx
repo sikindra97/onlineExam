@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 
+import Swal from "sweetalert2";
 import {
   Box,
   Typography,
@@ -105,8 +106,140 @@ submitExam();
 }
 
 },[timeLeft,submitted,exam]);
+/* ================= ANTI CHEATING ================= */
+useEffect(() => {
+
+  let violations = 0;
+
+  const enterFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(()=>{});
+    }
+  };
+
+  /* START FULLSCREEN */
+  enterFullscreen();
+
+  const addViolation = async (msg) => {
+
+    violations++;
+
+    await Swal.fire({
+      icon: "warning",
+      title: "Violation Detected",
+      text: `${msg} (${violations}/3)`,
+      confirmButtonColor: "#d33",
+      allowOutsideClick:false
+    });
+
+    if(violations >= 3){
+
+      await Swal.fire({
+        icon:"error",
+        title:"Exam Submitted",
+        text:"Too many violations detected"
+      });
+
+      submitExam();
+      return;
+    }
+
+    /* ALERT CLOSE -> FORCE FULLSCREEN AGAIN */
+
+    setTimeout(()=>{
+      enterFullscreen();
+    },200);
+
+  };
 
 
+  /* TAB SWITCH */
+
+  const handleVisibilityChange = () => {
+    if (document.hidden) {
+      addViolation("Tab switching detected");
+    }
+  };
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+
+
+  /* RIGHT CLICK */
+
+  const disableRightClick = (e) => e.preventDefault();
+  document.addEventListener("contextmenu", disableRightClick);
+
+
+  /* COPY PASTE */
+
+  const disableCopyPaste = (e) => e.preventDefault();
+  document.addEventListener("copy", disableCopyPaste);
+  document.addEventListener("paste", disableCopyPaste);
+  document.addEventListener("cut", disableCopyPaste);
+
+
+  /* KEY SHORTCUTS */
+
+  const disableKeys = (e) => {
+
+    if(e.ctrlKey && ["c","v","x","a"].includes(e.key.toLowerCase())){
+      e.preventDefault();
+    }
+
+    if(e.key==="PrintScreen"){
+      e.preventDefault();
+      addViolation("Screenshot attempt detected");
+    }
+
+  };
+
+  document.addEventListener("keydown", disableKeys);
+
+
+  /* TEXT SELECT */
+
+  const disableSelection = (e)=>e.preventDefault();
+  document.addEventListener("selectstart", disableSelection);
+
+
+  /* FULLSCREEN EXIT */
+
+  const handleFullscreenExit = () => {
+    if(!document.fullscreenElement){
+      addViolation("Fullscreen exited");
+    }
+  };
+
+  document.addEventListener("fullscreenchange", handleFullscreenExit);
+
+
+  /* DEVTOOLS */
+
+  const detectDevTools = setInterval(()=>{
+
+    if(window.outerWidth - window.innerWidth > 160){
+      addViolation("Developer tools detected");
+    }
+
+  },2000);
+
+
+  return () => {
+
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+    document.removeEventListener("contextmenu", disableRightClick);
+    document.removeEventListener("copy", disableCopyPaste);
+    document.removeEventListener("paste", disableCopyPaste);
+    document.removeEventListener("cut", disableCopyPaste);
+    document.removeEventListener("keydown", disableKeys);
+    document.removeEventListener("selectstart", disableSelection);
+    document.removeEventListener("fullscreenchange", handleFullscreenExit);
+
+    clearInterval(detectDevTools);
+
+  };
+
+}, []);
 
 /* ================= HANDLE ANSWER ================= */
 
