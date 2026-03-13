@@ -8,6 +8,7 @@ import {
   Select,
   IconButton,
   InputAdornment,
+  CircularProgress
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useNavigate, Link } from "react-router-dom";
@@ -22,23 +23,29 @@ function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState("student");
   const [error, setError] = useState("");
+  const [loading,setLoading] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    setLoading(true);
+
     try {
-      const res = await api.post("/auth/register", {
-        name,
-        email,
-        password,
-        role,
-      });
-      login(res.data.token, res.data.user);
-      navigate("/");
+   await api.post("/auth/register", {
+  name,
+  email,
+  password,
+  role,
+});
+
+navigate("/login");
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed");
+    } finally{
+      setLoading(false);
     }
   };
   return (
@@ -133,8 +140,8 @@ function Register() {
           <MenuItem value="teacher">Teacher</MenuItem>
         </Select>
 
-        <Button type="submit" variant="contained" fullWidth sx={{ mt: 3, py: 1.2 }}>
-          Register
+        <Button type="submit" variant="contained" fullWidth sx={{ mt: 3, py: 1.2 }} disabled={loading}>
+          {loading ? <CircularProgress size={24} color="inherit"/> : "Register"}
         </Button>
       </form>
 
