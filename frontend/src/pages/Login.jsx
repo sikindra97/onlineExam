@@ -6,6 +6,7 @@ import {
   Typography,
   IconButton,
   InputAdornment,
+  CircularProgress
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useNavigate, Link } from "react-router-dom";
@@ -18,18 +19,24 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [loading,setLoading] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const submit = async (e) => {
     e.preventDefault();
+
+    setLoading(true);
+
     try {
       const res = await api.post("/auth/login", { email, password });
       login(res.data.token, res.data.user);
       navigate("/");
     } catch (err) {
       setError(err.response?.data?.message || "Login failed");
+    } finally{
+      setLoading(false);
     }
   };
 
@@ -106,8 +113,8 @@ export default function Login() {
           }}
         />
 
-        <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, py: 1.2 }}>
-          Login
+        <Button type="submit" fullWidth variant="contained" sx={{ mt: 3, py: 1.2 }} disabled={loading}>
+          {loading ? <CircularProgress size={24} color="inherit"/> : "Login"}
         </Button>
       </form>
 
