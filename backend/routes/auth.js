@@ -1,269 +1,250 @@
-
-// const router = require("express").Router();
-// const bcrypt = require("bcryptjs");
-// const jwt = require("jsonwebtoken");
-
-// const User = require("../models/User");
-// const auth = require("../middleware/authMiddleware");
-// const role = require("../middleware/roleMiddleware");
-
-// /* =========================
-//    REGISTER
-// ========================= */
-// router.post("/register", async (req, res) => {
-//   try {
-//     const { name, email, password, role } = req.body;
-
-//     const existingUser = await User.findOne({ email });
-//     if (existingUser)
-//       return res.status(400).json({ message: "User already exists" });
-
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-//     await User.create({
-//       name,
-//       email,
-//       password: hashedPassword,
-//       role: role || "student",
-//     });
-
-//     res.json({ message: "User registered successfully" });
-//   } catch (err) {
-//     res.status(500).json({ message: "Server error" });
-//   }
-// });
-
-// /* =========================
-//    LOGIN
-// ========================= */
-// router.post("/login", async (req, res) => {
-//   try {
-//     // console.log("LOGIN BODY:", req.body);
-
-//     const { email, password } = req.body;
-//     if (!email || !password) {
-//       return res.status(400).json({ message: "Email & password required" });
-//     }
-
-//     const user = await User.findOne({ email });
-//     if (!user)
-//       return res.status(400).json({ message: "Invalid credentials" });
-
-//     const isMatch = await bcrypt.compare(password, user.password);
-//     if (!isMatch)
-//       return res.status(400).json({ message: "Invalid credentials" });
-
-//     const token = jwt.sign(
-//       { id: user._id, role: user.role },
-//       process.env.JWT_SECRET,
-//       { expiresIn: "1d" }
-//     );
-
-//     res.json({
-//       token,
-//       user: {
-//         _id: user._id,
-//         name: user.name,
-//         email: user.email,
-//         role: user.role,
-//       },
-//     });
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ message: "Server error" });
-//   }
-// });
-
-// /* =========================
-//    CURRENT USER (FIXES AUTH BUG)
-// ========================= */
-// router.get("/me", auth, async (req, res) => {
-//   const user = await User.findById(req.user.id).select("-password");
-//   res.json(user);
-// });
-
-// /* =========================
-//    GET USERS (ADMIN)
-// ========================= */
-// router.get("/users", auth, role("admin"), async (req, res) => {
-//   const users = await User.find().select("-password");
-//   res.json(users);
-// });
-
-// /* =========================
-//    DELETE USER (ADMIN)
-// ========================= */
-// router.delete("/users/:id", auth, role("admin"), async (req, res) => {
-//   if (req.user.id === req.params.id) {
-//     return res.status(400).json({ message: "Admin cannot delete himself" });
-//   }
-
-//   await User.findByIdAndDelete(req.params.id);
-//   res.json({ message: "User deleted successfully" });
-// });
-
-// module.exports = router;
-
-
-
-
-
 const router = require("express").Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const User = require("../models/User");
 const auth = require("../middleware/authMiddleware");
-const role = require("../middleware/roleMiddleware");
+const roleMiddleware = require("../middleware/roleMiddleware");
 
 /* =========================
-   REGISTER
+REGISTER
 ========================= */
 router.post("/register", async (req, res) => {
-  try {
-    const { name, email, password, role } = req.body;
+try {
 
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Name, email and password are required",
-      });
-    }
 
-    const existingUser = await User.findOne({ email });
+const { name, email, password, role } = req.body;
 
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: "User already exists",
-      });
-    }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+if (!name || !email || !password) {
+  return res.status(400).json({
+    success: false,
+    message: "Name, email and password are required",
+  });
+}
 
-    const user = await User.create({
-      name,
-      email,
-      password: hashedPassword,
-      role: role || "student",
-    });
+const existingUser = await User.findOne({ email });
 
-    res.status(201).json({
-      success: true,
-      message: "User registered successfully",
-      userId: user._id,
-    });
+if (existingUser) {
+  return res.status(400).json({
+    success: false,
+    message: "User already exists",
+  });
+}
 
-  } catch (err) {
-    console.error("REGISTER ERROR:", err);
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
-  }
+const hashedPassword = await bcrypt.hash(password, 10);
+
+/* SAFE ROLE HANDLING */
+const userRole = role === "teacher" ? "teacher" : "student";
+
+const user = await User.create({
+  name,
+  email,
+  password: hashedPassword,
+  role: userRole,
+  status: userRole === "teacher" ? "pending" : "approved",
+});
+
+console.log("USER SAVED:", user);
+
+res.status(201).json({
+  success: true,
+  message: "User registered successfully",
+  userId: user._id,
+});
+
+} catch (err) {
+console.error("REGISTER ERROR:", err);
+res.status(500).json({
+success: false,
+message: "Server error",
+});
+}
 });
 
 /* =========================
-   LOGIN
+LOGIN
 ========================= */
 router.post("/login", async (req, res) => {
-  try {
-    const { email, password } = req.body;
+try {
+const { email, password } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and password required",
-      });
-    }
+if (!email || !password) {
+  return res.status(400).json({
+    success: false,
+    message: "Email and password required",
+  });
+}
 
-    const user = await User.findOne({ email });
+const user = await User.findOne({ email });
 
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid credentials",
-      });
-    }
+if (!user) {
+  return res.status(400).json({
+    success: false,
+    message: "Invalid credentials",
+  });
+}
 
-    const isMatch = await bcrypt.compare(password, user.password);
+const isMatch = await bcrypt.compare(password, user.password);
 
-    if (!isMatch) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid credentials",
-      });
-    }
+if (!isMatch) {
+  return res.status(400).json({
+    success: false,
+    message: "Invalid credentials",
+  });
+}
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+if (user.status === "rejected") {
+  return res.status(403).json({
+    success: false,
+    message: "Your account was rejected by admin",
+  });
+}
 
-    res.json({
-      success: true,
-      token,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-    });
+if (user.role === "teacher" && user.status !== "approved") {
+  return res.status(403).json({
+    success: false,
+    message: "Account waiting for admin approval",
+  });
+}
 
-  } catch (err) {
-    console.error("LOGIN ERROR:", err);
+const token = jwt.sign(
+  { id: user._id, role: user.role },
+  process.env.JWT_SECRET,
+  { expiresIn: "1d" }
+);
 
-    res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
-  }
+res.json({
+  success: true,
+  token,
+  user: {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+  },
+});
+
+} catch (err) {
+console.error("LOGIN ERROR:", err);
+
+res.status(500).json({
+  success: false,
+  message: "Server error",
+});
+
+}
 });
 
 /* =========================
-   CURRENT USER
+CURRENT USER
 ========================= */
 router.get("/me", auth, async (req, res) => {
-  const user = await User.findById(req.user.id).select("-password");
+const user = await User.findById(req.user.id).select("-password");
 
-  res.json({
-    success: true,
-    user,
-  });
+res.json({
+success: true,
+user,
+});
 });
 
 /* =========================
-   GET USERS (ADMIN)
+pending teacher
 ========================= */
-router.get("/users", auth, role("admin"), async (req, res) => {
-  const users = await User.find().select("-password");
 
-  res.json({
-    success: true,
-    users,
-  });
+router.get("/pending-teachers", auth, roleMiddleware("admin"), async (req, res) => {
+
+const teachers = await User.find({
+role: "teacher",
+status: "pending"
+}).select("-password");
+
+res.json({
+success: true,
+teachers
+});
+
 });
 
 /* =========================
-   DELETE USER
+Approve Teacher
 ========================= */
-router.delete("/users/:id", auth, role("admin"), async (req, res) => {
+router.put("/approve-teacher/:id", auth, roleMiddleware("admin"), async (req, res) => {
 
-  if (req.user.id === req.params.id) {
-    return res.status(400).json({
-      success: false,
-      message: "Admin cannot delete himself",
-    });
-  }
+const teacher = await User.findById(req.params.id);
 
-  await User.findByIdAndDelete(req.params.id);
+if (!teacher) {
+return res.status(404).json({
+success: false,
+message: "Teacher not found"
+});
+}
 
-  res.json({
-    success: true,
-    message: "User deleted successfully",
-  });
+teacher.status = "approved";
+await teacher.save();
+
+res.json({
+success: true,
+message: "Teacher approved"
+});
+
+});
+
+/* =========================
+REJECT TEACHER
+========================= */
+
+router.put("/reject-teacher/:id", auth, roleMiddleware("admin"), async (req, res) => {
+
+const teacher = await User.findById(req.params.id);
+
+if (!teacher) {
+return res.status(404).json({
+success: false,
+message: "Teacher not found"
+});
+}
+
+teacher.status = "rejected";
+await teacher.save();
+
+res.json({
+success: true,
+message: "Teacher rejected"
+});
+
+});
+
+/* =========================
+GET USERS (ADMIN)
+========================= */
+router.get("/users", auth, roleMiddleware("admin"), async (req, res) => {
+const users = await User.find().select("-password");
+
+res.json({
+success: true,
+users,
+});
+});
+
+/* =========================
+DELETE USER
+========================= */
+router.delete("/users/:id", auth, roleMiddleware("admin"), async (req, res) => {
+
+if (req.user.id === req.params.id) {
+return res.status(400).json({
+success: false,
+message: "Admin cannot delete himself",
+});
+}
+
+await User.findByIdAndDelete(req.params.id);
+
+res.json({
+success: true,
+message: "User deleted successfully",
+});
 });
 
 module.exports = router;
