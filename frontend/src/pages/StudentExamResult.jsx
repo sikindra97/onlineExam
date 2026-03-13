@@ -50,11 +50,11 @@ export default function StudentExamResult() {
         /* =========================
            2️⃣ RESULT FROM NAVIGATION STATE
         ========================= */
-        if (state) {
-          setResult(state);
-          setLoading(false);
-          return;
-        }
+      if (state) {
+  setResult(state); // temporary result
+}
+
+/* fetch latest result for updated rank */
 
         /* =========================
            3️⃣ LIVE / TIMED RESULT (DB)
@@ -183,7 +183,6 @@ export default function StudentExamResult() {
             Practice Exam – Result not saved in database
           </Alert>
         )}
-
         <Button
           variant="contained"
           sx={{ mt: 4 }}
