@@ -44,7 +44,7 @@ export default function Header() {
     navigate("/login");
   };
 
-  /* ✅ NAVIGATION FUNCTION */
+  /* NAVIGATION FUNCTION */
 
   const goTo = (path)=>{
     navigate(path);
@@ -52,6 +52,7 @@ export default function Header() {
   };
 
   /* DRAWER MENU */
+
 const menuItems = [
 
 {label:"Dashboard",action:()=>goTo("/")},
@@ -69,6 +70,11 @@ action:()=>navigate("/admin/messages")
 user.role==="admin" && {
 label:"Manage Users",
 action:()=>navigate("/admin/users")
+},
+
+user.role==="admin" && {
+label:"Pending Teachers",
+action:()=>navigate("/admin/pending-teachers")
 },
 
 {label:"Logout",action:handleLogout}
@@ -153,6 +159,12 @@ Live
 <Button color="inherit" onClick={()=>goTo("/history")}>
 History
 </Button>
+
+{user.role==="admin" && (
+<Button color="inherit" onClick={()=>goTo("/admin/pending-teachers")}>
+Pending Teachers
+</Button>
+)}
 
 </Stack>
 
